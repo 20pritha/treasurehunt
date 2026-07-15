@@ -7,11 +7,11 @@
 
 /* ── LOADING SCREEN ────────────────────────────────────────── */
 const LOADING_TIPS = [
-  "Sharpening rusty swords...",
-  "Waking the Gatekeeper (carefully)...",
-  "Untangling spider silk...",
+  "Brushing sand from ancient tablets...",
+  "Waking the Sentinel (carefully)...",
+  "Bargaining with desert djinn...",
   "Polishing the Sixteenth Gate...",
-  "Rehearsing riddles...",
+  "Charting star maps by dune-light...",
   "Hiding birthday treasure...",
 ];
 
@@ -86,7 +86,7 @@ let mapPos = 0, mapPositions = [];
 
 function showMap() {
   show("screen-map");
-  applyTheme({ accent: "#8b5cf6", particleHue: 265, particleDensity: 1 });
+  applyTheme({ accent: "#d9a05b", particleHue: 38, particleDensity: 0.8, mood: 1 });
   updateHUD();
   buildOverworld();
 }
@@ -110,7 +110,7 @@ function buildOverworld() {
 
   let d = `M ${mapPositions[0].x} ${mapPositions[0].y}`;
   for (let i = 1; i < mapPositions.length; i++) d += ` L ${mapPositions[i].x} ${mapPositions[i].y}`;
-  svg.innerHTML = `<path d="${d}" fill="none" stroke="#3a4080" stroke-width="1.6" stroke-dasharray="3 3"/>`;
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="#7a5a34" stroke-width="1.6" stroke-dasharray="3 3"/>`;
 
   STAGES.forEach((st, i) => {
     const clearedIt = State.cleared >= st.id;

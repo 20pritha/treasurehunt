@@ -1,21 +1,21 @@
 /* ═══════════════════════════════════════════════════════════════
    LEVEL 16: THE SHADOW VAULT — styles
-   Palette: deep blues/blacks, purple glow, gold accents.
+   Palette: warm dark sand/umber, amber glow, gold accents.
    Fonts: "Press Start 2P" (headings) + "VT323" (body).
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --bg-0: #05060e;
-  --bg-1: #0a0d1f;
-  --bg-2: #121631;
-  --panel: #151a38;
-  --panel-edge: #2b3163;
-  --purple: #8b5cf6;
-  --purple-glow: rgba(139, 92, 246, 0.55);
+  --bg-0: #0e0805;
+  --bg-1: #1f1108;
+  --bg-2: #2e1a0d;
+  --panel: #2a1810;
+  --panel-edge: #4a2f1a;
+  --purple: #d9812e; /* the "mystical accent" token — warm amber, not literally purple */
+  --purple-glow: rgba(217, 129, 46, 0.55);
   --gold: #ffd44d;
   --gold-dim: #b8952f;
-  --ink: #dfe3ff;
-  --ink-dim: #8b90c0;
+  --ink: #f5e8d0;
+  --ink-dim: #b8a082;
   --hp: #ff5d73;
   --mp: #58c7ff;
   --good: #7dff9b;
