@@ -1,0 +1,12 @@
+{
+  "name": "shadow-vault",
+  "private": true,
+  "type": "module",
+  "description": "LEVEL 16: The Shadow Vault — a birthday RPG platformer",
+  "scripts": {
+    "lint": "eslint js"
+  },
+  "devDependencies": {
+    "eslint": "^9.9.0"
+  }
+}

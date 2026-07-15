@@ -103,16 +103,13 @@
     <button class="btn btn-small" id="btn-dialogue-next">▼</button>
   </div>
 
-  <!-- platform-run phase -->
+  <!-- Part 1: traversal — runner canvas, or a rhythm/dodge mount -->
   <div class="platform-zone hidden" id="platform-zone">
-    <div class="platform-hint">Run and jump to reach <span id="platform-goal-name"></span>!</div>
+    <div class="platform-hint">Reach <span id="platform-goal-name"></span>!</div>
     <canvas id="platform-canvas"></canvas>
+    <div class="tt-mount hidden" id="part1-mount"></div>
     <div class="platform-controls">
-      <div class="pf-dpad">
-        <button class="btn dpad-btn pf-left" id="pf-left">◀</button>
-        <button class="btn dpad-btn pf-right" id="pf-right">▶</button>
-      </div>
-      <button class="btn dpad-btn pf-jump" id="pf-jump">⤒ JUMP</button>
+      <button class="btn btn-primary action-btn" id="part1-action">TAP!</button>
     </div>
   </div>
 </div>
@@ -160,11 +157,15 @@
       </div>
       <div class="hero-sprite" id="hero-sprite">🗡️</div>
     </div>
-    <div class="battle-actions" id="battle-actions">
+    <div class="battle-actions" id="battle-actions-combat">
       <button class="btn btn-battle" id="btn-attack">⚔️ ATTACK</button>
       <button class="btn btn-battle" id="btn-spell">🔮 SPELL <small>15MP</small></button>
       <button class="btn btn-battle btn-dodge" id="btn-dodge">🛡️ DODGE</button>
       <button class="btn btn-battle hidden" id="btn-relic">✦ RELIC BURST</button>
+    </div>
+    <div class="battle-actions hidden" id="battle-actions-timedtap">
+      <div class="tt-mount" id="part2-mount"></div>
+      <button class="btn btn-primary action-btn" id="part2-action">TAP!</button>
     </div>
   </div>
 </div>
@@ -192,9 +193,13 @@
 
 <script src="js/config.js"></script>
 <script src="js/data.js"></script>
+<script src="js/save.js"></script>
+<script src="js/hud.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/platformer.js"></script>
 <script src="js/combat.js"></script>
+<script src="js/timedtap.js"></script>
+<script src="js/vault.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

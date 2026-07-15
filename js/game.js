@@ -1,109 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════
-   GAME ENGINE — screens, state, saving, HUD, the walkable
-   overworld, the platform-run → combat stage flow, and the
-   Birthday Vault ending.
+   GAME ENGINE — boot sequence, the walkable overworld, and the
+   Part 1 (traversal) → Part 2 (confrontation) stage flow. State/
+   save lives in save.js, HUD/toasts in hud.js, the ending sequence
+   in vault.js.
    ═══════════════════════════════════════════════════════════════ */
-
-const SAVE_KEY = "shadowvault_save_v2";
-
-const State = {
-  cleared: 0,          // highest stage completed (0 = none)
-  xp: 0,
-  level: 1,
-  hp: 100, maxHp: 100,
-  mp: 50,  maxMp: 50,
-  inv: [],             // relic ids, in the order they were won
-  ach: [],             // unlocked achievement ids
-};
-
-const $ = (id) => document.getElementById(id);
-
-/* ── save / load ───────────────────────────────────────────── */
-function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(State)); } catch (e) { /* private mode etc. */ }
-}
-function load() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return false;
-    Object.assign(State, JSON.parse(raw));
-    State.inv = [...new Set(State.inv)];
-    return true;
-  } catch (e) { return false; }
-}
-function wipeSave() { localStorage.removeItem(SAVE_KEY); }
-
-/* ── screen switching ──────────────────────────────────────── */
-function show(screenId) {
-  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
-  $(screenId).classList.add("active");
-}
-
-/* ── HUD ───────────────────────────────────────────────────── */
-function levelFor(xp) {
-  let lvl = 1;
-  for (let i = 0; i < LEVEL_CURVE.length; i++) if (xp >= LEVEL_CURVE[i]) lvl = i + 1;
-  return lvl;
-}
-
-function updateHUD() {
-  $("hp-fill").style.width = (State.hp / State.maxHp) * 100 + "%";
-  $("mp-fill").style.width = (State.mp / State.maxMp) * 100 + "%";
-  $("hp-num").textContent = State.hp;
-  $("mp-num").textContent = State.mp;
-  $("xp-num").textContent = State.xp + " XP";
-  $("lvl-num").textContent = "Lv." + State.level;
-  $("inv-count").textContent = State.inv.length;
-  const next = Math.min(State.cleared + 1, 16);
-  $("hud-stage").textContent = `Stage ${next}/16 · ${State.cleared}/16 ✦`;
-}
-
-/* ── toasts (achievements, level ups, warnings) ────────────── */
-function toast(icon, title, text, cls = "") {
-  const t = document.createElement("div");
-  t.className = "toast " + cls;
-  t.innerHTML = `<span class="toast-ico">${icon}</span><div><div class="toast-title">${title}</div><div class="toast-text">${text}</div></div>`;
-  $("toast-zone").appendChild(t);
-  setTimeout(() => t.classList.add("out"), 3400);
-  setTimeout(() => t.remove(), 3900);
-}
-
-function checkAchievements() {
-  ACHIEVEMENTS.forEach((a) => {
-    if (State.cleared >= a.after && !State.ach.includes(a.id)) {
-      State.ach.push(a.id);
-      AudioSys.sfx("levelup");
-      toast(a.icon, "ACHIEVEMENT · " + a.title, a.text, "toast-gold");
-    }
-  });
-}
-
-function gainXP(amount) {
-  const before = State.level;
-  State.xp += amount;
-  State.level = levelFor(State.xp);
-  if (State.level > before) {
-    AudioSys.sfx("levelup");
-    toast("⬆️", "LEVEL UP!", `You are now Level ${State.level}. The kingdom celebrates your sixteenth year.`, "toast-gold");
-    State.maxHp += 10; State.hp = State.maxHp;
-    State.maxMp += 5;  State.mp = State.maxMp;
-    document.body.classList.add("levelup-flash");
-    setTimeout(() => document.body.classList.remove("levelup-flash"), 900);
-  }
-  updateHUD();
-}
-
-/* Floating damage/heal number over an element */
-function floatNum(overEl, text, cls) {
-  const rect = overEl.getBoundingClientRect();
-  const f = document.createElement("div");
-  f.className = "float-num " + cls;
-  f.textContent = text;
-  f.style.left = rect.left + rect.width / 2 + (Math.random() * 40 - 20) + "px";
-  f.style.top = rect.top + rect.height / 3 + "px";
-  document.body.appendChild(f);
-  setTimeout(() => f.remove(), 1100);
-}
 
 /* ── LOADING SCREEN ────────────────────────────────────────── */
 const LOADING_TIPS = [
@@ -256,14 +156,42 @@ function updateMapHero() {
   $("btn-map-prev").disabled = mapPos === 0;
 }
 
-/* ── STAGE FLOW: dialogue → platform run → real-time combat ── */
+/* ── shared damage handlers ──────────────────────────────────
+   Part 1 (traversal) mistakes are forgiving: chip HP, never drop
+   below 1, no floating combat text (no boss on screen yet).
+   Part 2 (confrontation) mistakes hurt more and can trigger the
+   "you have fallen... but heroes rise again" recovery, same as
+   the original real-time combat behavior. Shared across Combat,
+   Duel, and Mash so each doesn't reimplement the clamp/toast. ── */
+function part1Hit(dmg) {
+  State.hp = Math.max(1, State.hp - dmg);
+  updateHUD();
+  document.body.classList.add("hurt-flash");
+  setTimeout(() => document.body.classList.remove("hurt-flash"), 350);
+}
+
+function heroTakesDamage(dmg) {
+  State.hp = Math.max(0, State.hp - dmg);
+  AudioSys.sfx("hit");
+  document.body.classList.add("hurt-flash");
+  setTimeout(() => document.body.classList.remove("hurt-flash"), 350);
+  floatNum($("hero-sprite"), "-" + dmg, "float-dmg");
+  updateHUD();
+  if (State.hp <= 0) {
+    State.hp = Math.floor(State.maxHp / 2);
+    toast("💫", "You have fallen...", "...but heroes rise again. The relics lend you strength.", "toast-red");
+    updateHUD();
+  }
+}
+
+/* ── STAGE FLOW: dialogue → Part 1 → Part 2 ─────────────────── */
 let currentStage = null;
 let typeTimer = null;
 
 function enterStage(st) {
   currentStage = st;
   show("screen-stage");
-  $("stage-header").textContent = `— GATE ${st.id} OF 16 —`;
+  $("stage-header").textContent = `— GATE ${st.id} OF ${STAGES.length} —`;
   $("monster-sprite").textContent = st.monster.sprite;
   $("monster-sprite").className = "monster-sprite enter";
   $("monster-name").textContent = st.monster.name;
@@ -271,7 +199,7 @@ function enterStage(st) {
   $("monster-zone").classList.remove("hidden");
   $("dialogue-box").classList.remove("hidden");
   $("platform-zone").classList.add("hidden");
-  if (st.id === 16) AudioSys.sfx("boss");
+  if (st.isFinale) AudioSys.sfx("boss");
 
   let line = 0;
   const showLine = () => typewrite($("dialogue-text"), st.intro[line]);
@@ -279,7 +207,7 @@ function enterStage(st) {
     AudioSys.sfx("click");
     line++;
     if (line < st.intro.length) showLine();
-    else beginPlatform(st);
+    else beginPart1(st);
   };
   showLine();
 }
@@ -294,21 +222,30 @@ function typewrite(el, text) {
   }, 18);
 }
 
-function beginPlatform(st) {
+function beginPart1(st) {
   $("monster-zone").classList.add("hidden");
   $("dialogue-box").classList.add("hidden");
   $("platform-zone").classList.remove("hidden");
   $("platform-goal-name").textContent = st.monster.name;
 
-  Platformer.start($("platform-canvas"), st.level, {
-    onComplete: () => beginCombat(st),
-    onHit: (dmg) => {
-      State.hp = Math.max(1, State.hp + dmg);
-      updateHUD();
-      document.body.classList.add("hurt-flash");
-      setTimeout(() => document.body.classList.remove("hurt-flash"), 350);
-    },
-  });
+  const type = st.part1.type;
+  $("platform-canvas").classList.toggle("hidden", type !== "runner");
+  $("part1-mount").classList.toggle("hidden", type === "runner");
+  $("part1-action").textContent = type === "runner" ? "JUMP!" : "TAP!";
+  $("part1-action").onpointerdown = null;
+
+  if (type === "runner") {
+    $("part1-action").onpointerdown = (e) => { e.preventDefault(); Platformer.requestJump(); };
+    Platformer.start($("platform-canvas"), st.part1.config, {
+      onComplete: () => beginPart2(st),
+      onHit: (dmg) => part1Hit(dmg),
+    });
+  } else {
+    TimedTap.start($("part1-mount"), $("part1-action"), st.part1.config, {
+      onRepResult: (pass, dmg) => { if (!pass) part1Hit(dmg); },
+      onSequenceEnd: () => beginPart2(st),
+    });
+  }
 }
 
 function drawBattleBars() {
@@ -320,10 +257,10 @@ function setActions(enabled) {
   ["btn-attack", "btn-spell", "btn-dodge", "btn-relic"].forEach((id) => ($(id).disabled = !enabled));
 }
 
-function beginCombat(st) {
+function beginPart2(st) {
   Platformer.stop();
   $("platform-zone").classList.add("hidden");
-  // A safety net so a rough platform run never dumps the hero into a fight near death.
+  // A safety net so a rough Part 1 never dumps the hero into a fight near death.
   State.hp = Math.max(State.hp, Math.floor(State.maxHp * 0.2));
   updateHUD();
 
@@ -332,46 +269,78 @@ function beginCombat(st) {
   $("boss-sprite").textContent = st.monster.sprite;
   $("boss-name").textContent = st.monster.name;
   $("battle-lvl").textContent = State.level;
-  $("btn-relic").classList.toggle("hidden", st.id !== 16);
-  logBattle(st.id === 16
-    ? "\"You stand before me at last. Show me what fifteen relics have made of you.\""
-    : `${st.monster.name} bares its strength. Fight!`);
-  drawBattleBars();
-  setActions(true);
+  $("btn-relic").classList.toggle("hidden", !st.isFinale);
 
-  Combat.start(st.fight, {
-    onTelegraph: () => {
-      $("boss-sprite").classList.add("telegraph");
-      logBattle(`${st.monster.name} winds up — DODGE!`);
-    },
-    onStrikeResolved: () => { $("boss-sprite").classList.remove("telegraph"); },
-    onDodgeSuccess: () => {
-      floatNum($("hero-sprite"), "DODGED!", "float-heal");
-      AudioSys.sfx("click");
-      logBattle("You slip past the blow just in time!");
-    },
-    onHeroHit: (dmg) => {
-      State.hp = Math.max(0, State.hp - dmg);
-      AudioSys.sfx("hit");
-      document.body.classList.add("hurt-flash");
-      setTimeout(() => document.body.classList.remove("hurt-flash"), 350);
-      floatNum($("hero-sprite"), "-" + dmg, "float-dmg");
-      logBattle("The blow lands. That's going to leave a mark.");
-      drawBattleBars();
-      updateHUD();
-      if (State.hp <= 0) {
-        State.hp = Math.floor(State.maxHp / 2);
-        toast("💫", "You have fallen...", "...but heroes rise again. The relics lend you strength.", "toast-red");
+  const type = st.part2.type;
+  $("battle-actions-combat").classList.toggle("hidden", type !== "combat");
+  $("battle-actions-timedtap").classList.toggle("hidden", type === "combat");
+
+  logBattle(st.isFinale
+    ? "\"You stand before me at last. Show me what seven relics have made of you.\""
+    : `${st.monster.name} bares its strength. Fight!`);
+
+  if (type === "combat") {
+    drawBattleBars();
+    setActions(true);
+    Combat.start(st.part2.config, {
+      onTelegraph: () => {
+        $("boss-sprite").classList.add("telegraph");
+        logBattle(`${st.monster.name} winds up — DODGE!`);
+      },
+      onStrikeResolved: () => { $("boss-sprite").classList.remove("telegraph"); },
+      onDodgeSuccess: () => {
+        floatNum($("hero-sprite"), "DODGED!", "float-heal");
+        AudioSys.sfx("click");
+        logBattle("You slip past the blow just in time!");
+      },
+      onHeroHit: (dmg) => {
+        heroTakesDamage(dmg);
+        logBattle("The blow lands. That's going to leave a mark.");
         drawBattleBars();
-        updateHUD();
-      }
-    },
-    onVictory: () => { setActions(false); onStageWon(st); },
-  });
+      },
+      onVictory: () => { setActions(false); onStageWon(st); },
+    });
+  } else if (type === "duel") {
+    $("hero-hp-fill").style.width = (State.hp / State.maxHp) * 100 + "%";
+    $("boss-hp-fill").style.width = "100%";
+    $("part2-action").textContent = "TAP!";
+    TimedTap.start($("part2-mount"), $("part2-action"), st.part2.config, {
+      onRepResult: (pass, dmg) => {
+        if (pass) {
+          AudioSys.sfx("hit");
+          const boss = $("boss-sprite");
+          boss.classList.add("hit");
+          setTimeout(() => boss.classList.remove("hit"), 300);
+          floatNum(boss, "-" + dmg, "float-dmg");
+          logBattle("A solid strike lands!");
+        } else {
+          heroTakesDamage(dmg);
+          logBattle("Mistimed! The blow gets through.");
+        }
+      },
+      onProgress: ({ bossHp, bossMax }) => {
+        $("boss-hp-fill").style.width = Math.max(0, (bossHp / bossMax) * 100) + "%";
+      },
+      onSequenceEnd: () => onStageWon(st),
+    });
+  } else if (type === "mash") {
+    $("part2-action").textContent = "TAP FAST!";
+    Mash.start($("part2-mount"), $("part2-action"), st.part2.config, {
+      onProgress: ({ heroPct, bossPct }) => {
+        $("hero-hp-fill").style.width = heroPct + "%";
+        $("boss-hp-fill").style.width = bossPct + "%";
+      },
+      onRepResult: (pass) => {
+        if (pass) { AudioSys.sfx("correct"); logBattle("Your power overwhelms them!"); }
+        else { heroTakesDamage(st.part2.config.missDmg); logBattle("They out-muscle you — brace!"); }
+      },
+      onSequenceEnd: () => onStageWon(st),
+    });
+  }
 }
 
 function onStageWon(st) {
-  if (st.id === 16) { winFinalBattle(st); return; }
+  if (st.isFinale) { winFinalBattle(st); return; }
 
   AudioSys.sfx("correct");
   const sprite = $("boss-sprite");
@@ -444,105 +413,12 @@ function winFinalBattle(st) {
   document.body.classList.add("explosion-flash");
   setTimeout(() => document.body.classList.remove("explosion-flash"), 1200);
 
-  State.cleared = 16;
+  State.cleared = STAGES.length;
   gainXP(st.xp);
   checkAchievements();
   save();
 
   setTimeout(showVault, 2600);
-}
-
-/* ── THE BIRTHDAY VAULT ────────────────────────────────────── */
-function showVault() {
-  show("screen-vault");
-  AudioSys.sfx("vault");
-  const door = $("vault-door");
-  const text = $("vault-text");
-  text.textContent = "The Birthday Vault stirs after sixteen years...";
-
-  setTimeout(() => { door.classList.add("opening"); text.textContent = "The Vault Key turns on its own..."; }, 1800);
-  setTimeout(() => {
-    door.classList.add("open");
-    text.textContent = "Inside: treasure chests, glowing gold. Tap each to open.";
-    buildChests();
-  }, 4200);
-}
-
-function buildChests() {
-  const row = $("chest-row");
-  row.classList.remove("hidden");
-  row.innerHTML = "";
-  let opened = 0;
-
-  CONFIG.vaultRewards.forEach((reward) => {
-    const c = document.createElement("button");
-    c.className = "chest";
-    c.innerHTML = `<span class="chest-closed">🎁</span><span class="chest-open hidden"></span>`;
-    c.onclick = () => {
-      if (c.classList.contains("opened")) return;
-      c.classList.add("opened");
-      AudioSys.sfx("chest");
-      c.querySelector(".chest-closed").classList.add("hidden");
-      const openFace = c.querySelector(".chest-open");
-      openFace.classList.remove("hidden");
-      openFace.innerHTML = `<span class="chest-ico">${reward.icon}</span>`;
-      toast(reward.icon, reward.name, reward.desc, "toast-gold");
-      opened++;
-      if (opened === CONFIG.vaultRewards.length) setTimeout(showFinale, 1400);
-    };
-    row.appendChild(c);
-  });
-}
-
-function showFinale() {
-  AudioSys.sfx("fanfare");
-  const fin = $("vault-finale");
-  fin.classList.remove("hidden");
-  fin.innerHTML = `
-    <div class="finale-burst">🎉</div>
-    <h1 class="finale-title">HAPPY 16TH BIRTHDAY!</h1>
-    <p class="finale-sub">Congratulations, ${CONFIG.heroName}. You have completed the Shadow Vault.</p>
-    <div class="finale-message">「 ${CONFIG.realTreasureMessage} 」</div>
-    <button class="btn btn-primary" id="btn-credits">⚔ CREDITS</button>`;
-  confettiBurst();
-  $("btn-credits").onclick = showCredits;
-}
-
-/* ── CREDITS ───────────────────────────────────────────────── */
-function showCredits() {
-  show("screen-credits");
-  const relicList = State.inv.map((id) => {
-    const r = findRelic(id);
-    return `<div class="credit-line">${r.icon} ${r.name}</div>`;
-  }).join("");
-  $("credits-scroll").innerHTML = `
-    <div class="credit-heading">LEVEL 16<br>THE SHADOW VAULT</div>
-    <div class="credit-role">STARRING</div>
-    <div class="credit-line">🧝 ${CONFIG.heroName} — the Chosen One, age 16</div>
-    <div class="credit-role">FEATURING THE DEFEATED</div>
-    ${STAGES.map((s) => `<div class="credit-line">${s.monster.sprite} ${s.monster.name}</div>`).join("")}
-    <div class="credit-role">RELICS RECOVERED</div>
-    ${relicList}
-    <div class="credit-role">FINAL STATS</div>
-    <div class="credit-line">⭐ ${State.xp} XP · Lv.${State.level} · 16/16 Gates</div>
-    <div class="credit-heading small">${CONFIG.creditsFrom}</div>
-    <button class="btn btn-ghost" id="btn-back-title">↩ TITLE SCREEN</button>`;
-  $("btn-back-title").onclick = showTitle;
-}
-
-/* ── confetti ──────────────────────────────────────────────── */
-function confettiBurst() {
-  const COLORS = ["#ffd700", "#b98aff", "#7cf7ff", "#ff8ac2", "#9dff8a"];
-  for (let i = 0; i < 80; i++) {
-    const c = document.createElement("div");
-    c.className = "confetti";
-    c.style.left = Math.random() * 100 + "vw";
-    c.style.background = COLORS[i % COLORS.length];
-    c.style.animationDelay = Math.random() * 1.2 + "s";
-    c.style.animationDuration = 2.2 + Math.random() * 1.8 + "s";
-    document.body.appendChild(c);
-    setTimeout(() => c.remove(), 4500);
-  }
 }
 
 /* ── particle background (embers + floating lanterns) ──────── */
@@ -588,16 +464,6 @@ function startParticles() {
   })();
 }
 
-/* ── touch-button "hold" helper (for the platformer d-pad) ──── */
-function bindHold(el, onDown, onUp) {
-  const down = (e) => { e.preventDefault(); onDown(); };
-  const up = (e) => { e.preventDefault(); onUp(); };
-  el.addEventListener("pointerdown", down);
-  el.addEventListener("pointerup", up);
-  el.addEventListener("pointerleave", up);
-  el.addEventListener("pointercancel", up);
-}
-
 /* ── init ──────────────────────────────────────────────────── */
 function init() {
   startParticles();
@@ -628,12 +494,7 @@ function init() {
   $("btn-map-next").onclick = () => setMapPos(mapPos + 1);
   $("btn-map-enter").onclick = () => { AudioSys.sfx("click"); enterStage(STAGES[mapPos]); };
 
-  // Platform run touch controls (press-and-hold)
-  bindHold($("pf-left"), () => Platformer.setKey("left", true), () => Platformer.setKey("left", false));
-  bindHold($("pf-right"), () => Platformer.setKey("right", true), () => Platformer.setKey("right", false));
-  bindHold($("pf-jump"), () => Platformer.setKey("jump", true), () => Platformer.setKey("jump", false));
-
-  // Combat controls
+  // Combat controls (Part 2 "combat" type; Duel/Mash bind their own action button internally)
   $("btn-attack").onclick = () => {
     const res = Combat.attack();
     if (!res) return;
@@ -668,7 +529,7 @@ function init() {
     AudioSys.sfx("loot");
     floatNum($("boss-sprite"), "-" + res.dmg, "float-crit");
     drawBattleBars();
-    logBattle("All fifteen relics ignite in a spear of golden light!");
+    logBattle("All seven relics ignite in a spear of golden light!");
     $("btn-relic").disabled = true;
   };
 
