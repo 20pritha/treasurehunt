@@ -23,7 +23,7 @@ export default [
         STAGES: "readonly", ACHIEVEMENTS: "readonly", LEVEL_CURVE: "readonly",
         SAVE_KEY: "readonly", State: "writable", save: "readonly",
         load: "readonly", wipeSave: "readonly",
-        $: "readonly", show: "readonly", updateHUD: "readonly",
+        $: "readonly", show: "readonly", updateHUD: "readonly", heroSprite: "readonly",
         toast: "readonly", checkAchievements: "readonly", gainXP: "readonly",
         AudioSys: "readonly",
         buildGrid: "readonly", ChoiceGrid: "readonly", StateCycle: "readonly",

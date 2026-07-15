@@ -129,7 +129,7 @@ function buildOverworld() {
   const hero = document.createElement("div");
   hero.className = "map-hero";
   hero.id = "map-hero-token";
-  hero.textContent = "🧝";
+  hero.innerHTML = heroSprite(32);
   path.appendChild(hero);
 
   mapPos = Math.min(State.cleared, n - 1);

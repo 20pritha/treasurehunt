@@ -376,7 +376,7 @@ const Maze = {
     const { rows, cols, exit } = this.config;
     this.cells = buildGrid(this.container, rows, cols, (cell, r, c) => {
       if (this._wallAt(r, c)) { cell.classList.add("pz-wall"); return; }
-      if (r === this.pos.r && c === this.pos.c) { cell.classList.add("pz-player"); cell.textContent = "🧝"; }
+      if (r === this.pos.r && c === this.pos.c) { cell.classList.add("pz-player"); cell.innerHTML = heroSprite(24); }
       else if (r === exit.r && c === exit.c) { cell.classList.add("pz-exit"); cell.textContent = "🚪"; }
       else if (this._gateAt(r, c)) { cell.classList.add("pz-gate"); cell.textContent = "✖"; }
       else cell.classList.add("pz-open");

@@ -266,9 +266,9 @@ button { font-family: inherit; cursor: pointer; }
 }
 .map-hero {
   position: absolute; transform: translate(-50%, -50%);
-  font-size: 28px; z-index: 3;
+  z-index: 3;
   transition: left 0.35s ease, top 0.35s ease;
-  filter: drop-shadow(0 0 10px var(--purple-glow));
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--level-accent) 70%, transparent));
   animation: monster-idle 1.4s ease-in-out infinite;
 }
 .map-controls { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
@@ -404,7 +404,7 @@ button { font-family: inherit; cursor: pointer; }
 .pz-open { background: var(--panel); cursor: pointer; }
 .pz-open:hover { border-color: var(--level-accent, var(--purple)); }
 .pz-gate { background: var(--panel); color: var(--bad); cursor: pointer; }
-.pz-player { font-size: 22px; }
+.pz-player { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--level-accent) 70%, transparent)); }
 .pz-exit { font-size: 20px; }
 
 /* ── victory overlay ───────────────────────────────────────── */
@@ -542,6 +542,7 @@ button { font-family: inherit; cursor: pointer; }
 .credit-heading.small { font-size: 11px; color: var(--ink); }
 .credit-role { font-family: var(--font-px); font-size: 9px; color: var(--purple); letter-spacing: 3px; margin-top: 18px; }
 .credit-line { font-size: 20px; color: var(--ink-dim); }
+.credit-hero-icon { display: inline-flex; vertical-align: middle; }
 
 /* ── toasts ────────────────────────────────────────────────── */
 #toast-zone {

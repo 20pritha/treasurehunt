@@ -92,6 +92,18 @@ function creditRole(text) {
   el.textContent = text;
   return el;
 }
+// CONFIG.heroName is gift-giver-edited text, so it stays a plain text node
+// here (not interpolated into innerHTML) even though the sprite beside it
+// needs innerHTML — same hardening as the rest of vault.js.
+function heroCreditLine() {
+  const el = document.createElement("div");
+  el.className = "credit-line";
+  const icon = document.createElement("span");
+  icon.className = "credit-hero-icon";
+  icon.innerHTML = heroSprite(18);
+  el.append(icon, document.createTextNode(` ${CONFIG.heroName} — the Chosen One, age 16`));
+  return el;
+}
 
 function showCredits() {
   show("screen-credits");
@@ -115,7 +127,7 @@ function showCredits() {
   scroll.append(
     heading,
     creditRole("STARRING"),
-    creditLine(`🧝 ${CONFIG.heroName} — the Chosen One, age 16`),
+    heroCreditLine(),
     creditRole("FEATURING THE DEFEATED"),
     ...STAGES.map((s) => creditLine(`${s.monster.sprite} ${s.monster.name}`)),
     creditRole("RELICS RECOVERED"),
