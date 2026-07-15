@@ -19,15 +19,11 @@ function levelFor(xp) {
 }
 
 function updateHUD() {
-  $("hp-fill").style.width = (State.hp / State.maxHp) * 100 + "%";
-  $("mp-fill").style.width = (State.mp / State.maxMp) * 100 + "%";
-  $("hp-num").textContent = State.hp;
-  $("mp-num").textContent = State.mp;
   $("xp-num").textContent = State.xp + " XP";
   $("lvl-num").textContent = "Lv." + State.level;
   $("inv-count").textContent = State.inv.length;
   const next = Math.min(State.cleared + 1, STAGES.length);
-  $("hud-stage").textContent = `Stage ${next}/${STAGES.length} · ${State.cleared}/${STAGES.length} ✦`;
+  $("hud-stage").textContent = `Trial ${next}/${STAGES.length} · ${State.cleared}/${STAGES.length} ✦`;
 }
 
 /* ── toasts (achievements, level ups, warnings) ────────────── */
@@ -68,22 +64,8 @@ function gainXP(amount) {
   if (State.level > before) {
     AudioSys.sfx("levelup");
     toast("⬆️", "LEVEL UP!", `You are now Level ${State.level}. The kingdom celebrates your sixteenth year.`, "toast-gold");
-    State.maxHp += 10; State.hp = State.maxHp;
-    State.maxMp += 5;  State.mp = State.maxMp;
     document.body.classList.add("levelup-flash");
     setTimeout(() => document.body.classList.remove("levelup-flash"), 900);
   }
   updateHUD();
-}
-
-/* Floating damage/heal number over an element */
-function floatNum(overEl, text, cls) {
-  const rect = overEl.getBoundingClientRect();
-  const f = document.createElement("div");
-  f.className = "float-num " + cls;
-  f.textContent = text;
-  f.style.left = rect.left + rect.width / 2 + (Math.random() * 40 - 20) + "px";
-  f.style.top = rect.top + rect.height / 3 + "px";
-  document.body.appendChild(f);
-  setTimeout(() => f.remove(), 1100);
 }

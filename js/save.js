@@ -2,14 +2,12 @@
    SAVE — game state shape + localStorage persistence.
    ═══════════════════════════════════════════════════════════════ */
 
-const SAVE_KEY = "shadowvault_save_v3";
+const SAVE_KEY = "shadowvault_save_v4";
 
 const State = {
-  cleared: 0,          // highest stage completed (0 = none)
+  cleared: 0,          // highest trial completed (0 = none)
   xp: 0,
   level: 1,
-  hp: 100, maxHp: 100,
-  mp: 50,  maxMp: 50,
   inv: [],             // relic ids, in the order they were won
   ach: [],             // unlocked achievement ids
 };

@@ -1,17 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════
    GAME ENGINE — boot sequence, the walkable overworld, and the
-   Part 1 (traversal) → Part 2 (confrontation) stage flow. State/
-   save lives in save.js, HUD/toasts in hud.js, the ending sequence
-   in vault.js.
+   dialogue → puzzle → reward trial flow. State/save lives in
+   save.js, HUD/toasts in hud.js, the ending sequence in vault.js,
+   the five puzzle engines in puzzles.js.
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── LOADING SCREEN ────────────────────────────────────────── */
 const LOADING_TIPS = [
   "Sharpening rusty swords...",
-  "Bribing goblin scouts...",
+  "Waking the Gatekeeper (carefully)...",
   "Untangling spider silk...",
   "Polishing the Sixteenth Gate...",
-  "Waking ancient wizards (carefully)...",
+  "Rehearsing riddles...",
   "Hiding birthday treasure...",
 ];
 
@@ -35,7 +35,7 @@ const CUTSCENE_LINES = [
   "Legends spoke of a chosen hero...",
   "born under the Sixteenth Gate.",
   "Today...",
-  "you awaken.",
+  "the First Descent begins.",
 ];
 
 function runCutscene() {
@@ -86,6 +86,7 @@ let mapPos = 0, mapPositions = [];
 
 function showMap() {
   show("screen-map");
+  applyTheme({ accent: "#8b5cf6", particleHue: 265, particleDensity: 1 });
   updateHUD();
   buildOverworld();
 }
@@ -156,58 +157,89 @@ function updateMapHero() {
   $("btn-map-prev").disabled = mapPos === 0;
 }
 
-/* ── shared damage handlers ──────────────────────────────────
-   Part 1 (traversal) mistakes are forgiving: chip HP, never drop
-   below 1, no floating combat text (no boss on screen yet).
-   Part 2 (confrontation) mistakes hurt more and can trigger the
-   "you have fallen... but heroes rise again" recovery, same as
-   the original real-time combat behavior. Shared across Combat,
-   Duel, and Mash so each doesn't reimplement the clamp/toast. ── */
-function part1Hit(dmg) {
-  State.hp = Math.max(1, State.hp - dmg);
-  updateHUD();
-  document.body.classList.add("hurt-flash");
-  setTimeout(() => document.body.classList.remove("hurt-flash"), 350);
-}
+/* ── HEARTS (per-trial, transient — reset every time a trial starts) ── */
+const HEARTS_MAX = 3;
+let heartsLeft = HEARTS_MAX;
 
-function heroTakesDamage(dmg) {
-  State.hp = Math.max(0, State.hp - dmg);
-  AudioSys.sfx("hit");
-  document.body.classList.add("hurt-flash");
-  setTimeout(() => document.body.classList.remove("hurt-flash"), 350);
-  floatNum($("hero-sprite"), "-" + dmg, "float-dmg");
-  updateHUD();
-  if (State.hp <= 0) {
-    State.hp = Math.floor(State.maxHp / 2);
-    toast("💫", "You have fallen...", "...but heroes rise again. The relics lend you strength.", "toast-red");
-    updateHUD();
+function updateHearts() {
+  const row = $("hearts-row");
+  row.innerHTML = "";
+  for (let i = 0; i < HEARTS_MAX; i++) {
+    const h = document.createElement("span");
+    h.className = "heart" + (i < heartsLeft ? "" : " lost");
+    h.textContent = i < heartsLeft ? "❤️" : "🖤";
+    row.appendChild(h);
   }
 }
 
-/* ── STAGE FLOW: dialogue → Part 1 → Part 2 ─────────────────── */
+function loseHeart(st) {
+  heartsLeft--;
+  updateHearts();
+  AudioSys.sfx("wrong");
+  document.body.classList.add("crack-flash");
+  setTimeout(() => document.body.classList.remove("crack-flash"), 500);
+  if (heartsLeft <= 0) setTimeout(() => resetLevel(st), 700);
+}
+
+function resetLevel(st) {
+  if (currentPuzzleEngine) currentPuzzleEngine.stop();
+  toast("💔", "The trial resets...", "Steady your focus. Every clue you've already won stays with you.", "toast-red");
+  enterLevel(st);
+}
+
+/* ── per-level atmosphere ─────────────────────────────────────
+   Mutating `particleTheme` in place lets the always-running
+   particle loop (startParticles, below) drift toward each new
+   level's palette as old particles cycle out — no need to tear
+   down and rebuild the canvas loop per level. ── */
+let particleTheme = { hue: 265, density: 1 };
+
+function applyTheme(theme) {
+  document.body.style.setProperty("--level-accent", theme.accent);
+  particleTheme.hue = theme.particleHue;
+  particleTheme.density = theme.particleDensity;
+  AudioSys.setMood(theme.mood || 1);
+}
+
+/* ── TRIAL FLOW: dialogue → puzzle → reward ─────────────────── */
+const PUZZLE_ENGINES = {
+  choice: ChoiceGrid, statecycle: StateCycle, sequence: SequenceInput,
+  mirror: MirrorBeam, maze: Maze,
+};
+
 let currentStage = null;
+let currentPuzzleEngine = null;
 let typeTimer = null;
 
-function enterStage(st) {
+function enterLevel(st) {
   currentStage = st;
   show("screen-stage");
-  $("stage-header").textContent = `— GATE ${st.id} OF ${STAGES.length} —`;
+  applyTheme(st.theme);
+  $("stage-header").textContent = `— TRIAL ${st.id} OF ${STAGES.length} —`;
   $("monster-sprite").textContent = st.monster.sprite;
   $("monster-sprite").className = "monster-sprite enter";
   $("monster-name").textContent = st.monster.name;
   $("monster-title").textContent = st.monster.title;
   $("monster-zone").classList.remove("hidden");
   $("dialogue-box").classList.remove("hidden");
-  $("platform-zone").classList.add("hidden");
-  if (st.isFinale) AudioSys.sfx("boss");
+  $("puzzle-zone").classList.add("hidden");
+
+  heartsLeft = HEARTS_MAX;
+  updateHearts();
 
   let line = 0;
-  const showLine = () => typewrite($("dialogue-text"), st.intro[line]);
+  const showLine = () => {
+    typewrite($("dialogue-text"), st.intro[line]);
+    if (st.id === 1) {
+      document.body.classList.add("shake");
+      setTimeout(() => document.body.classList.remove("shake"), 400);
+    }
+  };
   $("btn-dialogue-next").onclick = () => {
     AudioSys.sfx("click");
     line++;
     if (line < st.intro.length) showLine();
-    else beginPart1(st);
+    else beginPuzzle(st);
   };
   showLine();
 }
@@ -222,135 +254,28 @@ function typewrite(el, text) {
   }, 18);
 }
 
-function beginPart1(st) {
+function beginPuzzle(st) {
   $("monster-zone").classList.add("hidden");
   $("dialogue-box").classList.add("hidden");
-  $("platform-zone").classList.remove("hidden");
-  $("platform-goal-name").textContent = st.monster.name;
+  $("puzzle-zone").classList.remove("hidden");
+  $("puzzle-goal-name").textContent = st.monster.name;
 
-  const type = st.part1.type;
-  $("platform-canvas").classList.toggle("hidden", type !== "runner");
-  $("part1-mount").classList.toggle("hidden", type === "runner");
-  $("part1-action").textContent = type === "runner" ? "JUMP!" : "TAP!";
-  $("part1-action").onpointerdown = null;
-
-  if (type === "runner") {
-    $("part1-action").onpointerdown = (e) => { e.preventDefault(); Platformer.requestJump(); };
-    Platformer.start($("platform-canvas"), st.part1.config, {
-      onComplete: () => beginPart2(st),
-      onHit: (dmg) => part1Hit(dmg),
-    });
-  } else {
-    TimedTap.start($("part1-mount"), $("part1-action"), st.part1.config, {
-      onRepResult: (pass, dmg) => { if (!pass) part1Hit(dmg); },
-      onSequenceEnd: () => beginPart2(st),
-    });
-  }
+  const engine = PUZZLE_ENGINES[st.puzzle.type];
+  currentPuzzleEngine = engine;
+  engine.start($("puzzle-mount"), st.puzzle.config, {
+    onCorrect: () => onLevelWon(st),
+    onSolved: () => onLevelWon(st),
+    onWrong: () => loseHeart(st),
+  });
 }
 
-function drawBattleBars() {
-  $("boss-hp-fill").style.width = Math.max(0, (Combat.bossHp / Combat.bossMax) * 100) + "%";
-  $("hero-hp-fill").style.width = Math.max(0, (State.hp / State.maxHp) * 100) + "%";
-}
-function logBattle(text) { $("battle-log").textContent = text; }
-function setActions(enabled) {
-  ["btn-attack", "btn-spell", "btn-dodge", "btn-relic"].forEach((id) => ($(id).disabled = !enabled));
-}
-
-function beginPart2(st) {
-  Platformer.stop();
-  $("platform-zone").classList.add("hidden");
-  // A safety net so a rough Part 1 never dumps the hero into a fight near death.
-  State.hp = Math.max(State.hp, Math.floor(State.maxHp * 0.2));
-  updateHUD();
-
-  show("screen-battle");
-  $("boss-sprite").className = "boss-sprite";
-  $("boss-sprite").textContent = st.monster.sprite;
-  $("boss-name").textContent = st.monster.name;
-  $("battle-lvl").textContent = State.level;
-  $("btn-relic").classList.toggle("hidden", !st.isFinale);
-
-  const type = st.part2.type;
-  $("battle-actions-combat").classList.toggle("hidden", type !== "combat");
-  $("battle-actions-timedtap").classList.toggle("hidden", type === "combat");
-
-  logBattle(st.isFinale
-    ? "\"You stand before me at last. Show me what seven relics have made of you.\""
-    : `${st.monster.name} bares its strength. Fight!`);
-
-  if (type === "combat") {
-    drawBattleBars();
-    setActions(true);
-    Combat.start(st.part2.config, {
-      onTelegraph: () => {
-        $("boss-sprite").classList.add("telegraph");
-        logBattle(`${st.monster.name} winds up — DODGE!`);
-      },
-      onStrikeResolved: () => { $("boss-sprite").classList.remove("telegraph"); },
-      onDodgeSuccess: () => {
-        floatNum($("hero-sprite"), "DODGED!", "float-heal");
-        AudioSys.sfx("click");
-        logBattle("You slip past the blow just in time!");
-      },
-      onHeroHit: (dmg) => {
-        heroTakesDamage(dmg);
-        logBattle("The blow lands. That's going to leave a mark.");
-        drawBattleBars();
-      },
-      onVictory: () => { setActions(false); onStageWon(st); },
-    });
-  } else if (type === "duel") {
-    $("hero-hp-fill").style.width = (State.hp / State.maxHp) * 100 + "%";
-    $("boss-hp-fill").style.width = "100%";
-    $("part2-action").textContent = "TAP!";
-    TimedTap.start($("part2-mount"), $("part2-action"), st.part2.config, {
-      onRepResult: (pass, dmg) => {
-        if (pass) {
-          AudioSys.sfx("hit");
-          const boss = $("boss-sprite");
-          boss.classList.add("hit");
-          setTimeout(() => boss.classList.remove("hit"), 300);
-          floatNum(boss, "-" + dmg, "float-dmg");
-          logBattle("A solid strike lands!");
-        } else {
-          heroTakesDamage(dmg);
-          logBattle("Mistimed! The blow gets through.");
-        }
-      },
-      onProgress: ({ bossHp, bossMax }) => {
-        $("boss-hp-fill").style.width = Math.max(0, (bossHp / bossMax) * 100) + "%";
-      },
-      onSequenceEnd: () => onStageWon(st),
-    });
-  } else if (type === "mash") {
-    $("part2-action").textContent = "TAP FAST!";
-    Mash.start($("part2-mount"), $("part2-action"), st.part2.config, {
-      onProgress: ({ heroPct, bossPct }) => {
-        $("hero-hp-fill").style.width = heroPct + "%";
-        $("boss-hp-fill").style.width = bossPct + "%";
-      },
-      onRepResult: (pass) => {
-        if (pass) { AudioSys.sfx("correct"); logBattle("Your power overwhelms them!"); }
-        else { heroTakesDamage(st.part2.config.missDmg); logBattle("They out-muscle you — brace!"); }
-      },
-      onSequenceEnd: () => onStageWon(st),
-    });
-  }
-}
-
-function onStageWon(st) {
-  if (st.isFinale) { winFinalBattle(st); return; }
-
+function onLevelWon(st) {
+  if (currentPuzzleEngine) currentPuzzleEngine.stop();
   AudioSys.sfx("correct");
-  const sprite = $("boss-sprite");
-  sprite.classList.add("boss-death-small");
-  floatNum(sprite, "DEFEATED!", "float-crit");
 
   setTimeout(() => {
     State.cleared = Math.max(State.cleared, st.id);
     if (st.reward && !State.inv.includes(st.reward.id)) State.inv.push(st.reward.id);
-    State.mp = Math.min(State.maxMp, State.mp + 10);
 
     $("victory-monster").textContent = st.defeat;
     if (st.reward) {
@@ -365,7 +290,7 @@ function onStageWon(st) {
     checkAchievements();
     save();
     updateHUD();
-  }, 900);
+  }, 500);
 }
 
 function findRelic(id) {
@@ -380,7 +305,7 @@ function openInventory() {
   grid.innerHTML = "";
   $("inv-detail").classList.add("hidden");
   if (State.inv.length === 0) {
-    grid.innerHTML = "<div class='inv-empty'>Your satchel is empty. Defeat monsters to collect relics.</div>";
+    grid.innerHTML = "<div class='inv-empty'>Your satchel is empty. Solve trials to collect relics.</div>";
   }
   State.inv.forEach((id, idx) => {
     const relic = findRelic(id);
@@ -404,24 +329,35 @@ function ordinal(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-/* ── FINAL BATTLE WIN → VAULT ─────────────────────────────── */
-function winFinalBattle(st) {
-  AudioSys.sfx("crit");
-  const boss = $("boss-sprite");
-  boss.classList.add("boss-death");
-  logBattle("\"The Sixteenth Gate... has opened. The Vault... is... yours...\"");
-  document.body.classList.add("explosion-flash");
-  setTimeout(() => document.body.classList.remove("explosion-flash"), 1200);
+/* ── FINALE CUTSCENE → VAULT ─────────────────────────────────
+   Reuses the same fade-line staging as the opening runCutscene()
+   and the same #screen-cutscene screen — its click-to-skip
+   listener is always removed by the time end() fires during boot,
+   so the element is inert and safe to reuse here. ── */
+const FINALE_LINES = [
+  "Eight relics settle into your satchel, glowing together for the first time.",
+  "The Hunter's eyes vanish into the dark, and do not return.",
+  "A stone doorway rises ahead, lit by nothing but moonlight.",
+  "You have survived the First Descent.",
+];
 
-  State.cleared = STAGES.length;
-  gainXP(st.xp);
-  checkAchievements();
-  save();
-
-  setTimeout(showVault, 2600);
+function runFinaleCutscene() {
+  show("screen-cutscene");
+  const box = $("cutscene-text");
+  let i = 0;
+  const next = () => {
+    if (i >= FINALE_LINES.length) { showVault(); return; }
+    box.textContent = FINALE_LINES[i];
+    box.classList.remove("fade-line");
+    void box.offsetWidth;
+    box.classList.add("fade-line");
+    i++;
+    setTimeout(next, 2400);
+  };
+  setTimeout(next, 300);
 }
 
-/* ── particle background (embers + floating lanterns) ──────── */
+/* ── particle background (per-level tinted embers + lanterns) ── */
 function startParticles() {
   const canvas = $("particles");
   const ctx = canvas.getContext("2d");
@@ -439,7 +375,6 @@ function startParticles() {
       r: lantern ? 3 + Math.random() * 3 : 0.6 + Math.random() * 1.6,
       vy: lantern ? 0.15 + Math.random() * 0.2 : 0.3 + Math.random() * 0.7,
       vx: (Math.random() - 0.5) * 0.3,
-      hue: lantern ? 45 : 265 + Math.random() * 40,
       lantern,
       flicker: Math.random() * Math.PI * 2,
     };
@@ -451,12 +386,13 @@ function startParticles() {
       p.y -= p.vy;
       p.x += p.vx + Math.sin(p.flicker += 0.02) * 0.15;
       if (p.y < -20) parts[i] = spawn();
-      const alpha = p.lantern ? 0.5 + Math.sin(p.flicker * 3) * 0.2 : 0.35;
+      const hue = p.lantern ? 45 : particleTheme.hue;
+      const alpha = Math.min(1, (p.lantern ? 0.5 + Math.sin(p.flicker * 3) * 0.2 : 0.35) * particleTheme.density);
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${p.hue}, 90%, ${p.lantern ? 65 : 70}%, ${alpha})`;
+      ctx.fillStyle = `hsla(${hue}, 90%, ${p.lantern ? 65 : 70}%, ${alpha})`;
       ctx.shadowBlur = p.lantern ? 14 : 6;
-      ctx.shadowColor = `hsla(${p.hue}, 90%, 60%, 0.8)`;
+      ctx.shadowColor = `hsla(${hue}, 90%, 60%, 0.8)`;
       ctx.fill();
       ctx.shadowBlur = 0;
     });
@@ -471,16 +407,17 @@ function init() {
   $("btn-start").onclick = () => { AudioSys.sfx("click"); startGame(); };
   $("btn-continue").onclick = () => { AudioSys.sfx("click"); load(); startGame(); };
   $("btn-newgame").onclick = () => {
-    if (!confirm("Start a new quest? Your saved progress will be erased.")) return;
+    if (!confirm("Start a new descent? Your saved progress will be erased.")) return;
     wipeSave();
-    Object.assign(State, { cleared: 0, xp: 0, level: 1, hp: 100, maxHp: 100, mp: 50, maxMp: 50, inv: [], ach: [] });
+    Object.assign(State, { cleared: 0, xp: 0, level: 1, inv: [], ach: [] });
     startGame();
   };
 
   $("btn-victory-continue").onclick = () => {
     AudioSys.sfx("click");
     $("overlay-victory").classList.add("hidden");
-    showMap();
+    if (currentStage && currentStage.isFinale) runFinaleCutscene();
+    else showMap();
   };
 
   $("btn-inventory").onclick = openInventory;
@@ -492,46 +429,7 @@ function init() {
   // Overworld movement
   $("btn-map-prev").onclick = () => setMapPos(mapPos - 1);
   $("btn-map-next").onclick = () => setMapPos(mapPos + 1);
-  $("btn-map-enter").onclick = () => { AudioSys.sfx("click"); enterStage(STAGES[mapPos]); };
-
-  // Combat controls (Part 2 "combat" type; Duel/Mash bind their own action button internally)
-  $("btn-attack").onclick = () => {
-    const res = Combat.attack();
-    if (!res) return;
-    AudioSys.sfx(res.critical ? "crit" : "hit");
-    const boss = $("boss-sprite");
-    boss.classList.add("hit");
-    setTimeout(() => boss.classList.remove("hit"), 300);
-    floatNum(boss, (res.critical ? "CRIT -" : "-") + res.dmg, res.critical ? "float-crit" : "float-dmg");
-    drawBattleBars();
-    logBattle(res.critical ? "A CRITICAL STRIKE!" : "You land a solid hit!");
-  };
-  $("btn-spell").onclick = () => {
-    if (!Combat.canSpell(State.mp)) return;
-    State.mp -= Combat.SPELL_MP_COST;
-    updateHUD();
-    const res = Combat.spell();
-    if (!res) return;
-    AudioSys.sfx(res.critical ? "crit" : "hit");
-    floatNum($("boss-sprite"), (res.critical ? "CRIT -" : "-") + res.dmg, "float-crit");
-    drawBattleBars();
-    logBattle("Arcane energy tears through the air!");
-  };
-  $("btn-dodge").onclick = () => {
-    Combat.dodge();
-    $("btn-dodge").classList.add("dodge-flash");
-    setTimeout(() => $("btn-dodge").classList.remove("dodge-flash"), 250);
-    AudioSys.sfx("click");
-  };
-  $("btn-relic").onclick = () => {
-    const res = Combat.relicBurst(45);
-    if (!res) return;
-    AudioSys.sfx("loot");
-    floatNum($("boss-sprite"), "-" + res.dmg, "float-crit");
-    drawBattleBars();
-    logBattle("All seven relics ignite in a spear of golden light!");
-    $("btn-relic").disabled = true;
-  };
+  $("btn-map-enter").onclick = () => { AudioSys.sfx("click"); enterLevel(STAGES[mapPos]); };
 
   load();
   runLoading();

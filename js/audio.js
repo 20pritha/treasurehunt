@@ -61,12 +61,17 @@ const AudioSys = {
   /* Ambient music: slow minor arpeggio, scheduled note by note.
      A(m) pentatonic-ish loop — moody, dungeon-flavored, quiet. */
   MUSIC_NOTES: [220, 261.6, 329.6, 261.6, 220, 196, 164.8, 196],
+  moodMul: 1, // set via setMood() — transposes the loop per level's atmosphere
+
+  // Small per-level "the ambient sound changes with the environment" touch:
+  // a pitch multiplier on the existing loop rather than separate tracks.
+  setMood(mul) { this.moodMul = mul; },
 
   startMusic() {
     if (this.musicTimer || !this.musicOn) return;
     const step = () => {
       if (!this.musicOn) return;
-      const f = this.MUSIC_NOTES[this.musicStep % this.MUSIC_NOTES.length];
+      const f = this.MUSIC_NOTES[this.musicStep % this.MUSIC_NOTES.length] * this.moodMul;
       this.tone(f, 700, { type: "triangle", vol: 0.035 });
       this.tone(f / 2, 700, { type: "sine", vol: 0.03 }); // low drone an octave down
       this.musicStep++;

@@ -49,20 +49,13 @@
 <!-- ══════════ HUD ══════════ -->
 <div id="hud" class="hidden">
   <div class="hud-row">
-    <div class="hud-stat" title="Health">
-      <span class="hud-ico">❤️</span>
-      <div class="bar hp-bar"><div class="bar-fill" id="hp-fill"></div></div>
-      <span class="hud-num" id="hp-num">100</span>
+    <div class="hud-stat" title="Hearts (this trial)">
+      <div class="hearts-row" id="hearts-row"></div>
     </div>
-    <div class="hud-stat" title="Mana">
-      <span class="hud-ico">✨</span>
-      <div class="bar mp-bar"><div class="bar-fill" id="mp-fill"></div></div>
-      <span class="hud-num" id="mp-num">50</span>
-    </div>
+    <div class="hud-stat"><span class="hud-ico">⭐</span><span class="hud-num" id="xp-num">0 XP</span><span class="hud-lvl" id="lvl-num">Lv.1</span></div>
   </div>
   <div class="hud-row">
-    <div class="hud-stat"><span class="hud-ico">⭐</span><span class="hud-num" id="xp-num">0 XP</span><span class="hud-lvl" id="lvl-num">Lv.1</span></div>
-    <div class="hud-stat hud-stage" id="hud-stage">Stage 1/16</div>
+    <div class="hud-stat hud-stage" id="hud-stage">Trial 1/8</div>
     <button class="hud-btn" id="btn-inventory" title="Inventory">👜<span class="inv-count" id="inv-count">0</span></button>
     <button class="hud-btn" id="btn-sound" title="Sound">🔊</button>
     <button class="hud-btn" id="btn-music" title="Music">🎵</button>
@@ -71,8 +64,8 @@
 
 <!-- ══════════ OVERWORLD MAP (walkable path) ══════════ -->
 <div id="screen-map" class="screen">
-  <h2 class="screen-heading">✦ THE DARK REALM ✦</h2>
-  <p class="map-sub">Walk the path. Sixteen gates stand between you and the Vault.</p>
+  <h2 class="screen-heading">✦ THE FIRST DESCENT ✦</h2>
+  <p class="map-sub">Walk the path. Eight trials stand between you and the Vault.</p>
   <div class="map-scroll" id="map-scroll">
     <div class="map-path" id="map-path">
       <svg class="map-path-svg" id="map-path-svg"></svg>
@@ -86,7 +79,7 @@
   </div>
 </div>
 
-<!-- ══════════ STAGE (monster intro → platform run → combat) ══════════ -->
+<!-- ══════════ TRIAL (monster intro → puzzle → reward) ══════════ -->
 <div id="screen-stage" class="screen">
   <div class="stage-header" id="stage-header"></div>
 
@@ -103,14 +96,10 @@
     <button class="btn btn-small" id="btn-dialogue-next">▼</button>
   </div>
 
-  <!-- Part 1: traversal — runner canvas, or a rhythm/dodge mount -->
-  <div class="platform-zone hidden" id="platform-zone">
-    <div class="platform-hint">Reach <span id="platform-goal-name"></span>!</div>
-    <canvas id="platform-canvas"></canvas>
-    <div class="tt-mount hidden" id="part1-mount"></div>
-    <div class="platform-controls">
-      <button class="btn btn-primary action-btn" id="part1-action">TAP!</button>
-    </div>
+  <!-- puzzle phase — one of five engines from js/puzzles.js mounts here -->
+  <div class="puzzle-zone hidden" id="puzzle-zone">
+    <div class="puzzle-hint">Solve the trial of <span id="puzzle-goal-name"></span></div>
+    <div id="puzzle-mount"></div>
   </div>
 </div>
 
@@ -136,37 +125,6 @@
     <div class="inv-grid" id="inv-grid"></div>
     <div class="inv-detail hidden" id="inv-detail"></div>
     <button class="btn btn-ghost" id="btn-inv-close">CLOSE</button>
-  </div>
-</div>
-
-<!-- ══════════ REAL-TIME COMBAT (used for every fight) ══════════ -->
-<div id="screen-battle" class="screen">
-  <div class="battle-arena">
-    <div class="battle-boss">
-      <div class="boss-sprite" id="boss-sprite">👑</div>
-      <div class="boss-plate">
-        <div class="boss-name" id="boss-name">THE SHADOW KING</div>
-        <div class="bar boss-bar"><div class="bar-fill" id="boss-hp-fill"></div></div>
-      </div>
-    </div>
-    <div class="battle-log" id="battle-log">The Shadow King rises...</div>
-    <div class="battle-hero">
-      <div class="hero-plate">
-        <div class="hero-name">HERO · Lv.<span id="battle-lvl">?</span></div>
-        <div class="bar hero-bar"><div class="bar-fill" id="hero-hp-fill"></div></div>
-      </div>
-      <div class="hero-sprite" id="hero-sprite">🗡️</div>
-    </div>
-    <div class="battle-actions" id="battle-actions-combat">
-      <button class="btn btn-battle" id="btn-attack">⚔️ ATTACK</button>
-      <button class="btn btn-battle" id="btn-spell">🔮 SPELL <small>15MP</small></button>
-      <button class="btn btn-battle btn-dodge" id="btn-dodge">🛡️ DODGE</button>
-      <button class="btn btn-battle hidden" id="btn-relic">✦ RELIC BURST</button>
-    </div>
-    <div class="battle-actions hidden" id="battle-actions-timedtap">
-      <div class="tt-mount" id="part2-mount"></div>
-      <button class="btn btn-primary action-btn" id="part2-action">TAP!</button>
-    </div>
   </div>
 </div>
 
@@ -196,9 +154,7 @@
 <script src="js/save.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/audio.js"></script>
-<script src="js/platformer.js"></script>
-<script src="js/combat.js"></script>
-<script src="js/timedtap.js"></script>
+<script src="js/puzzles.js"></script>
 <script src="js/vault.js"></script>
 <script src="js/game.js"></script>
 </body>
