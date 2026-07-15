@@ -22,13 +22,17 @@
   --bad: #ff5d73;
   --font-px: "Press Start 2P", monospace;
   --font-body: "VT323", monospace;
+  --level-accent: var(--purple); /* re-set live per level by applyTheme() in game.js */
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
   height: 100%;
-  background: radial-gradient(ellipse at 50% -20%, var(--bg-2) 0%, var(--bg-1) 45%, var(--bg-0) 100%);
+  background: radial-gradient(ellipse at 50% -20%,
+    color-mix(in srgb, var(--level-accent) 20%, var(--bg-2)) 0%,
+    var(--bg-1) 45%, var(--bg-0) 100%);
+  transition: background 1.2s ease;
   color: var(--ink);
   font-family: var(--font-body);
   font-size: 20px;
@@ -42,6 +46,18 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ── background layers ─────────────────────────────────────── */
 #particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+#fog {
+  position: fixed; inset: -12%; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 30% at 22% 32%, color-mix(in srgb, var(--level-accent) 14%, transparent), transparent 60%),
+    radial-gradient(ellipse 36% 26% at 78% 68%, color-mix(in srgb, var(--level-accent) 11%, transparent), transparent 60%);
+  filter: blur(40px);
+  animation: fog-drift 48s ease-in-out infinite alternate;
+}
+@keyframes fog-drift {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(3.5%, -2.5%); }
+}
 #vignette {
   position: fixed; inset: 0; z-index: 1; pointer-events: none;
   background: radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0, 0, 5, 0.55) 100%);
@@ -153,6 +169,13 @@ button { font-family: inherit; cursor: pointer; }
 }
 .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #090b1c; }
 .btn:disabled { opacity: 0.4; cursor: default; }
+/* pointer devices only — :hover has no touch equivalent, so this never fires on phone */
+@media (hover: hover) {
+  .btn:not(:disabled):hover {
+    border-color: var(--level-accent);
+    box-shadow: 0 4px 0 #090b1c, 0 0 16px color-mix(in srgb, var(--level-accent) 55%, transparent);
+  }
+}
 .btn-primary {
   border-color: var(--gold-dim); color: var(--gold);
   animation: btn-glow 2s ease-in-out infinite;
@@ -252,11 +275,20 @@ button { font-family: inherit; cursor: pointer; }
 .map-controls .btn:disabled { opacity: 0.3; }
 
 /* ── stage / monster ───────────────────────────────────────── */
-.stage-header { font-family: var(--font-px); font-size: 11px; color: var(--ink-dim); letter-spacing: 2px; margin-bottom: 10px; }
+.stage-header {
+  font-family: var(--font-px); font-size: 11px; color: var(--ink-dim);
+  letter-spacing: 2px; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.stage-header::before, .stage-header::after {
+  content: "◈"; color: var(--level-accent);
+  animation: spin-pulse 1.6s ease-in-out infinite;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--level-accent) 70%, transparent);
+}
 .monster-zone { text-align: center; }
 .monster-sprite {
   font-size: clamp(64px, 18vw, 110px);
-  filter: drop-shadow(0 0 24px var(--purple-glow));
+  filter: drop-shadow(0 0 24px color-mix(in srgb, var(--level-accent) 65%, transparent));
   animation: monster-idle 2.6s ease-in-out infinite;
 }
 @keyframes monster-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
@@ -306,12 +338,32 @@ button { font-family: inherit; cursor: pointer; }
   display: grid; gap: 4px; width: min(100%, 340px);
   background: #000; border: 2px solid var(--level-accent, var(--purple));
   box-shadow: 0 0 26px color-mix(in srgb, var(--level-accent, var(--purple)) 35%, transparent);
-  padding: 4px;
+  padding: 4px; position: relative;
 }
 .pz-cell {
   aspect-ratio: 1; background: var(--panel); border: 1px solid var(--panel-edge);
   color: var(--ink); font-size: clamp(16px, 5vw, 24px);
   display: grid; place-items: center; min-height: 44px;
+  position: relative; overflow: hidden;
+}
+
+/* tap-feedback ring, shared by every puzzle engine's tap handlers */
+.pz-ripple {
+  position: absolute; inset: 0; margin: auto; width: 6px; height: 6px;
+  border-radius: 50%; border: 2px solid var(--level-accent, var(--gold));
+  pointer-events: none; animation: pz-ripple 0.5s ease-out forwards;
+}
+@keyframes pz-ripple {
+  from { opacity: 0.9; width: 6px; height: 6px; }
+  to { opacity: 0; width: 140%; height: 140%; }
+}
+
+/* the darkness closes back in after each move — only Maze uses this */
+.pz-grid.torch::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: radial-gradient(circle at var(--torch-x, 50%) var(--torch-y, 50%),
+    transparent 0%, transparent 16%, rgba(0, 0, 0, 0.94) 46%);
+  transition: background-position 0.3s ease;
 }
 
 .pz-choice-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
@@ -320,6 +372,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 12px 14px; min-height: 52px; min-width: 52px;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   font-family: var(--font-body); font-size: 15px;
+  position: relative; overflow: hidden;
 }
 .pz-choice-ico { font-size: 24px; }
 .pz-choice.picked { border-color: var(--gold-dim); }
@@ -383,11 +436,28 @@ button { font-family: inherit; cursor: pointer; }
   animation: loot-pop 0.5s 0.3s cubic-bezier(0.2, 1.6, 0.4, 1) both;
 }
 @keyframes loot-pop { from { transform: scale(0); } }
+
+/* relic-solved burst: motes scatter outward from screen center, tinted per level */
+.glow-mote {
+  position: fixed; top: 50%; left: 50%; width: 6px; height: 6px; border-radius: 50%;
+  z-index: 58; pointer-events: none; box-shadow: 0 0 10px currentColor;
+  animation: mote-burst 0.85s ease-out forwards;
+}
+@keyframes mote-burst {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--mx)), calc(-50% + var(--my))) scale(0.3); }
+}
 .loot-icon { font-size: 44px; filter: drop-shadow(0 0 14px rgba(255, 212, 77, 0.6)); }
 .loot-name { color: var(--gold); font-size: 21px; margin-top: 6px; }
 .xp-gain { color: var(--good); font-size: 22px; }
 
-/* ── inventory ─────────────────────────────────────────────── */
+/* ── inventory (opens like an ancient book, not just a scaled-in card) ── */
+.inv-card { animation: book-open 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both; transform-origin: left center; }
+@keyframes book-open {
+  0% { transform: perspective(900px) rotateY(-85deg) scale(0.92); opacity: 0; }
+  55% { opacity: 1; }
+  100% { transform: perspective(900px) rotateY(0deg) scale(1); opacity: 1; }
+}
 .inv-title { font-family: var(--font-px); font-size: 14px; color: var(--gold); letter-spacing: 2px; }
 .inv-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; width: 100%; }
 .inv-slot {

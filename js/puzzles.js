@@ -18,6 +18,15 @@
    build — the orchestrator (game.js) never reaches into their DOM.
    ═══════════════════════════════════════════════════════════════ */
 
+// Small tap-feedback ring, reused by every engine's tap handlers so every
+// puzzle interaction shares the same "magical" acknowledgment.
+function ripple(el) {
+  const r = document.createElement("span");
+  r.className = "pz-ripple";
+  el.appendChild(r);
+  setTimeout(() => r.remove(), 500);
+}
+
 function buildGrid(container, rows, cols, cellRenderer) {
   container.innerHTML = "";
   const grid = document.createElement("div");
@@ -92,6 +101,7 @@ const ChoiceGrid = {
   },
 
   _pick(i, btn) {
+    ripple(btn);
     const answer = Array.isArray(this.config.answer) ? this.config.answer : [this.config.answer];
     if (this.config.multiSelect) {
       btn.classList.toggle("picked");
@@ -138,7 +148,7 @@ const StateCycle = {
     const n = this.config.tileCount;
     this.cells = buildGrid(this.container, 1, n, (cell, r, c) => {
       cell.classList.add("pz-gear");
-      cell.onclick = () => this._tap(c);
+      cell.onclick = () => { ripple(cell); this._tap(c); };
     });
     this._paint();
     if (!this.submitBtn || !this.container.contains(this.submitBtn)) {
@@ -229,7 +239,7 @@ const SequenceInput = {
       btn.disabled = this.slots.includes(i);
       btn.innerHTML = `<span class="pz-choice-ico">${item.icon}</span>` +
         (item.label ? `<span class="pz-choice-label">${item.label}</span>` : "");
-      btn.onclick = () => this._place(i);
+      btn.onclick = () => { ripple(btn); this._place(i); };
       itemRow.appendChild(btn);
     });
     this.container.appendChild(itemRow);
@@ -291,7 +301,7 @@ const MirrorBeam = {
       const key = r + "," + c;
       if (key in this.orient) {
         cell.classList.add("pz-mirror");
-        cell.onclick = () => this._rotate(r, c);
+        cell.onclick = () => { ripple(cell); this._rotate(r, c); };
       } else if (r === this.config.source.r && c === this.config.source.c) {
         cell.classList.add("pz-source");
         cell.textContent = "✦";
@@ -370,17 +380,25 @@ const Maze = {
       else if (r === exit.r && c === exit.c) { cell.classList.add("pz-exit"); cell.textContent = "🚪"; }
       else if (this._gateAt(r, c)) { cell.classList.add("pz-gate"); cell.textContent = "✖"; }
       else cell.classList.add("pz-open");
-      cell.onclick = () => this._step(r, c);
+      cell.onclick = () => this._step(r, c, cell);
     });
     this.promptZone = document.createElement("div");
     this.container.appendChild(this.promptZone);
+
+    // torch-light vignette centered on the player, following it each move —
+    // "almost no light, only the Compass illuminates the surroundings"
+    const gridEl = this.container.querySelector(".pz-grid");
+    gridEl.classList.add("torch");
+    gridEl.style.setProperty("--torch-x", ((this.pos.c + 0.5) / cols * 100) + "%");
+    gridEl.style.setProperty("--torch-y", ((this.pos.r + 0.5) / rows * 100) + "%");
   },
 
-  _step(r, c) {
+  _step(r, c, cell) {
     if (this.activeGate) return;
     const dr = Math.abs(r - this.pos.r), dc = Math.abs(c - this.pos.c);
     if (dr + dc !== 1) return; // only orthogonal-adjacent moves
     if (this._wallAt(r, c)) return;
+    ripple(cell);
 
     const gate = this._gateAt(r, c);
     if (gate) { this._openGate(gate, r, c); return; }
@@ -403,6 +421,7 @@ const Maze = {
       btn.innerHTML = (opt.icon ? `<span class="pz-choice-ico">${opt.icon}</span>` : "") +
         (opt.label ? `<span class="pz-choice-label">${opt.label}</span>` : "");
       btn.onclick = () => {
+        ripple(btn);
         if (i === gate.prompt.answer) {
           this.resolvedGates.add(gate.r + "," + gate.c);
           this.activeGate = null;

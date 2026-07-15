@@ -177,8 +177,27 @@ function loseHeart(st) {
   updateHearts();
   AudioSys.sfx("wrong");
   document.body.classList.add("crack-flash");
+  $("hearts-row").classList.add("shake");
   setTimeout(() => document.body.classList.remove("crack-flash"), 500);
+  setTimeout(() => $("hearts-row").classList.remove("shake"), 400);
   if (heartsLeft <= 0) setTimeout(() => resetLevel(st), 700);
+}
+
+/* Motes scatter outward from screen center, tinted with the current level's
+   accent — fires the instant a puzzle resolves, ahead of the victory card. */
+function glowBurst() {
+  const color = getComputedStyle(document.body).getPropertyValue("--level-accent").trim() || "#ffd44d";
+  for (let i = 0; i < 16; i++) {
+    const m = document.createElement("div");
+    m.className = "glow-mote";
+    const angle = (i / 16) * Math.PI * 2 + Math.random() * 0.3;
+    const dist = 60 + Math.random() * 70;
+    m.style.setProperty("--mx", Math.cos(angle) * dist + "px");
+    m.style.setProperty("--my", Math.sin(angle) * dist + "px");
+    m.style.color = color;
+    document.body.appendChild(m);
+    setTimeout(() => m.remove(), 900);
+  }
 }
 
 function resetLevel(st) {
@@ -272,6 +291,7 @@ function beginPuzzle(st) {
 function onLevelWon(st) {
   if (currentPuzzleEngine) currentPuzzleEngine.stop();
   AudioSys.sfx("correct");
+  glowBurst();
 
   setTimeout(() => {
     State.cleared = Math.max(State.cleared, st.id);

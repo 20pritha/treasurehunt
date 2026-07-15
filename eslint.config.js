@@ -15,6 +15,7 @@ export default [
         addEventListener: "readonly", innerWidth: "readonly", innerHeight: "readonly",
         confirm: "readonly", Math: "readonly", Audio: "readonly",
         AudioContext: "readonly", webkitAudioContext: "readonly", performance: "readonly",
+        getComputedStyle: "readonly",
 
         // shared across js/*.js — these are plain <script> tags, not modules,
         // so every top-level const/function is a global the other files use.
