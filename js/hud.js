@@ -5,6 +5,28 @@
 
 const $ = (id) => document.getElementById(id);
 
+/* ── hero sprite: a small hand-authored pixel-art human, drawn in
+   inline SVG (no image assets, stays offline). The tunic reads
+   the current --level-accent so it tints per trial like everything
+   else; hair/skin/pants/boots stay fixed. Used anywhere the hero
+   is shown on screen — the overworld token, the maze player tile,
+   the credits line. ── */
+function heroSprite(size) {
+  return `<svg viewBox="0 0 10 14" width="${size}" height="${size}" style="image-rendering:pixelated" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="0" width="4" height="1" fill="#2a2a3a"/>
+    <rect x="2" y="1" width="6" height="1" fill="#2a2a3a"/>
+    <rect x="2" y="2" width="1" height="1" fill="#2a2a3a"/>
+    <rect x="7" y="2" width="1" height="1" fill="#2a2a3a"/>
+    <rect x="3" y="2" width="4" height="2" fill="#e8b98a"/>
+    <rect x="3" y="4" width="4" height="1" style="fill:var(--level-accent)"/>
+    <rect x="2" y="5" width="6" height="1" style="fill:var(--level-accent)"/>
+    <rect x="1" y="6" width="8" height="2" style="fill:var(--level-accent)"/>
+    <rect x="2" y="8" width="6" height="1" fill="#ffd44d"/>
+    <rect x="3" y="9" width="4" height="3" fill="#3a3550"/>
+    <rect x="2" y="12" width="6" height="1" fill="#1c1a24"/>
+  </svg>`;
+}
+
 /* ── screen switching ──────────────────────────────────────── */
 function show(screenId) {
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
