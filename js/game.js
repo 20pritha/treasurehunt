@@ -31,11 +31,11 @@ function runLoading() {
 /* ── OPENING CUTSCENE ──────────────────────────────────────── */
 const CUTSCENE_LINES = [
   "For sixteen years...",
-  "the Shadow Vault has remained sealed.",
+  "the Shadow Vault has lain buried beneath the dunes.",
   "Legends spoke of a chosen hero...",
   "born under the Sixteenth Gate.",
   "Today...",
-  "the First Descent begins.",
+  "the sands finally shift.",
 ];
 
 function runCutscene() {
@@ -356,8 +356,8 @@ function ordinal(n) {
    so the element is inert and safe to reuse here. ── */
 const FINALE_LINES = [
   "Eight relics settle into your satchel, glowing together for the first time.",
-  "The Hunter's eyes vanish into the dark, and do not return.",
-  "A stone doorway rises ahead, lit by nothing but moonlight.",
+  "The Warden's wrappings unravel into dust, and do not return.",
+  "A stone doorway rises from the sand, lit by nothing but moonlight.",
   "You have survived the First Descent.",
 ];
 

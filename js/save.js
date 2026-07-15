@@ -2,7 +2,7 @@
    SAVE — game state shape + localStorage persistence.
    ═══════════════════════════════════════════════════════════════ */
 
-const SAVE_KEY = "shadowvault_save_v4";
+const SAVE_KEY = "shadowvault_save_v5";
 
 const State = {
   cleared: 0,          // highest trial completed (0 = none)
